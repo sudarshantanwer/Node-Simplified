@@ -27,3 +27,5 @@ console.log(`Number of CPUs ${numCPUs}`);
 
   console.log(`Worker ${process.pid} started and listening on port ${port}`);
 }
+
+// run this in bash for i in {1..100}; do curl http://localhost:3000/; done
