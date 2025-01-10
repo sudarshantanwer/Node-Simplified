@@ -2,67 +2,91 @@ const express = require('express');
 const app = express();
 const PORT = 3000;
 
-// Middleware to parse incoming JSON requests
+// Middleware for parsing JSON and URL-encoded data
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// In-memory database (array)
-let todos = [
-    { id: 1, task: 'Learn Node.js', completed: false },
-    { id: 2, task: 'Build a CRUD app', completed: false },
+// In-memory database (mock)
+let todo = [
+    { task: "Learn Node JS", id: 1, status: false },
+    { task: "Learn React JS", id: 2, status: true },
+    { task: "Learn HTML", id: 3, status: true },
+    { task: "Learn MongoDB", id: 4, status: false },
+    { task: "Learn DSA", id: 5, status: false },
+    { task: "Learn JavaScript", id: 6, status: true },
 ];
 
-// CREATE - POST a new todo
-app.post('/api/todos', (req, res) => {
-    const newTodo = {
-        id: todos.length + 1,
-        task: req.body.task,
-        completed: false,
+// Create a new task
+app.post('/api/todo', (req, res) => {
+    const { task, status } = req.body;
+
+    if (!task || status === undefined) {
+        return res.status(400).json({ error: 'Task and status are required' });
+    }
+
+    const newTask = {
+        task,
+        status,
+        id: todo.length + 1
     };
-    todos.push(newTodo);
-    res.status(201).json(newTodo);
-});
-
-// READ - GET all todos
-app.get('/api/todos', (req, res) => {
-    res.json(todos);
-});
-
-// READ - GET a single todo by ID
-app.get('/api/todos/:id', (req, res) => {
-    const todoId = parseInt(req.params.id);
-    const todo = todos.find(t => t.id === todoId);
     
-    if (!todo) {
-        return res.status(404).json({ message: 'Todo not found' });
+    todo.push(newTask);
+    res.status(201).json({ message: "New Task Created", task: newTask });
+});
+
+// Update an existing task
+app.put('/api/todo/:id', (req, res) => {
+    const { task, status } = req.body;
+    const id = parseInt(req.params.id);
+
+    const index = todo.findIndex(t => t.id === id);
+    
+    if (index === -1) {
+        return res.status(404).json({ error: 'Task not found' });
     }
+
+    if (!task || status === undefined) {
+        return res.status(400).json({ error: 'Task and status are required' });
+    }
+
+    todo[index] = { task, status, id };
+    res.json({ message: "Task Updated", task: todo[index] });
+});
+
+// Get all tasks
+app.get('/api/todo', (req, res) => {
     res.json(todo);
 });
 
-// UPDATE - PUT (update) a todo by ID
-app.put('/api/todos/:id', (req, res) => {
-    const todoId = parseInt(req.params.id);
-    const todo = todos.find(t => t.id === todoId);
-    
-    if (!todo) {
-        return res.status(404).json({ message: 'Todo not found' });
+// Get a single task
+app.get('/api/todo/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const task = todo.find(t => t.id === id);
+
+    if (!task) {
+        return res.status(404).json({ error: 'Task not found' });
     }
-    
-    todo.task = req.body.task;
-    todo.completed = req.body.completed;
-    res.json(todo);
+
+    res.json(task);
 });
 
-// DELETE - DELETE a todo by ID
-app.delete('/api/todos/:id', (req, res) => {
-    const todoId = parseInt(req.params.id);
-    const todoIndex = todos.findIndex(t => t.id === todoId);
-    
-    if (todoIndex === -1) {
-        return res.status(404).json({ message: 'Todo not found' });
+// Delete a single task
+app.delete('/api/todo/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const index = todo.findIndex(t => t.id === id);
+
+    if (index === -1) {
+        return res.status(404).json({ error: 'Task not found' });
     }
-    
-    todos.splice(todoIndex, 1);
-    res.json({ message: `Todo with id ${todoId} deleted` });
+
+    todo.splice(index, 1);
+    res.json({ message: "Task Deleted", remainingTasks: todo });
+});
+
+// Delete all tasks
+app.delete('/api/todo', (req, res) => {
+    todo = [];
+    res.json({ message: "All Tasks Deleted", remainingTasks: todo });
 });
 
 // Start the server
