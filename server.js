@@ -76,6 +76,45 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
   });
 };
 
+function mapComponent(alcComponent) {
+  const mapping = {
+      'Web': 'WEB',
+      'Android': 'Android',
+      'iOS': 'iOS',
+      'Android TV': 'ATV',
+      'WebOS': 'HTML TV',
+      'Smart TV': 'HTML TV',
+      'Tizen': 'HTML TV',
+      'VIDAA': 'HTML TV',
+      'CP backend': 'Backend',
+      'DP Backend': 'DP Backend',
+      'EM': 'CMS',
+      'TV Stick': null, // <dont import>
+      'TA': null, // <dont import>
+      'EV': null, // <dont import>
+      'OPC': null, // <dont import>
+      'UES': null, // <dont import>
+      'AMS': null, // <dont import>
+      'Conviva': 'Throw Exception', // Throw exception
+      'AA': 'Throw Exception', // Throw exception
+      'Ads_Banner': 'Throw Exception', // Throw exception
+      'CSAI': 'Throw Exception', // Throw exception
+      'SSAI': 'Throw Exception', // Throw exception
+      'VOD Publishing': 'Throw Exception', // Throw exception
+      'Linear Publishing': 'Throw Exception' // Throw exception
+  };
+
+  const result = mapping[alcComponent];
+
+  if (result === 'Throw Exception') {
+      throw new Error(`Exception: Check ALC jira for '${alcComponent}' and manually map correct component.`);
+  } else if (result === null) {
+      return null; // <dont import> condition
+  } else {
+      return result;
+  }
+}
+
 // Endpoint to trigger the CSV processing
 app.get('/generate-new-csv', (req, res) => {
   const inputFilePath = path.join(__dirname, 'source.csv');  // Path to your source CSV file
