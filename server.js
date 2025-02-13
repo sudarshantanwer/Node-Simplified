@@ -26,7 +26,7 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
     // Extract only the required columns and add hardcoded values
     const newRow = {
       'Summary': row['Key']?.trim() || '' + '-' + row['Summary']?.trim() || '',      // Safely handle missing columns
-      'Components': row['Components']?.trim() || '',  // Safely handle missing columns
+      'Components': getComponentsData(row),  // Safely handle missing columns
       'Priority': row['Priority']?.trim() || '',    // Safely handle missing columns
       'Assignee': 'Unassigned',                          // Hardcoded value
       'Reporter': 'Astro',                         // Hardcoded value
@@ -76,6 +76,15 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
   });
 };
 
+function getComponentsData(row){
+    let input = row['Components']?.trim() || '';
+    const values = input.split(";");
+    const mappedValues = values.map(mapComponent).filter(Boolean); 
+    const output = mappedValues.join(",");
+
+    return output;
+}
+
 function mapComponent(alcComponent) {
   const mapping = {
       'Web': 'WEB',
@@ -118,7 +127,15 @@ function mapComponent(alcComponent) {
 // Endpoint to trigger the CSV processing
 app.get('/generate-new-csv', (req, res) => {
   const inputFilePath = path.join(__dirname, 'source.csv');  // Path to your source CSV file
-  const outputFilePath = path.join(__dirname, 'new_output.csv');  // Path to the output file
+  
+  const folderPath = path.join(__dirname, 'ALC Export');
+
+// Ensure the folder exists or create it
+if (!fs.existsSync(folderPath)) {
+  fs.mkdirSync(folderPath, { recursive: true });
+}
+
+  const outputFilePath = path.join(folderPath, 'new_output.csv');  // Path to the output file
 
   createNewCsv(inputFilePath, outputFilePath);
 
