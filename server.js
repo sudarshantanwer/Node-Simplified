@@ -1,4 +1,5 @@
 const express = require('express');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse');
@@ -6,6 +7,39 @@ const { createObjectCsvWriter } = require('csv-writer');
 
 const app = express();
 const PORT = 3000;
+
+const apiToken = '';
+const url = 'https://';
+const filePath = path.join(__dirname, 'MySource', 'source.csv');
+
+// Ensure 'MySource' directory exists
+if (!fs.existsSync(path.join(__dirname, 'MySource'))) {
+    fs.mkdirSync(path.join(__dirname, 'MySource'));
+}
+
+app.get('/download-csv', (req, res) => {
+  const options = {
+      headers: {
+          'Authorization': `Bearer ${apiToken}`
+      }
+  };
+
+  https.get(url, options, (response) => {
+      const file = fs.createWriteStream(filePath);
+      response.pipe(file);
+
+      file.on('finish', () => {
+          file.close();
+          console.log('File downloaded successfully');
+          // Send success response after the file is downloaded
+          res.status(200).json({ message: 'CSV file downloaded successfully' });
+      });
+  }).on('error', (err) => {
+      console.error('Error downloading file', err);
+      // Send error response if there's a problem with the download
+      res.status(500).json({ error: 'Failed to download CSV file' });
+  });
+});
 
 // Improved function to create the new CSV file
 const createNewCsv = (inputFilePath, outputFilePath) => {
@@ -126,16 +160,16 @@ function mapComponent(alcComponent) {
 
 // Endpoint to trigger the CSV processing
 app.get('/generate-new-csv', (req, res) => {
-  const inputFilePath = path.join(__dirname, 'source.csv');  // Path to your source CSV file
+  const inputFilePath = path.join(__dirname, 'Source File', 'source.csv');  // Path to your source CSV file
   
-  const folderPath = path.join(__dirname, 'ALC Export');
+  const folderPath = path.join(__dirname, 'Exported File');
 
 // Ensure the folder exists or create it
 if (!fs.existsSync(folderPath)) {
   fs.mkdirSync(folderPath, { recursive: true });
 }
 
-  const outputFilePath = path.join(folderPath, 'new_output.csv');  // Path to the output file
+  const outputFilePath = path.join(folderPath, 'output.csv');  // Path to the output file
 
   createNewCsv(inputFilePath, outputFilePath);
 
