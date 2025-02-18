@@ -20,3 +20,13 @@ Before getting started, ensure you have the following installed:
    ```bash
    git clone https://github.com/sudarshantanwer/Node-Simplified.git
    cd Node-Simplified
+
+
+Deployment on Hostinger
+1. run this command in your project terminal
+`ssh root@147.93.103.44`
+2. `sudo yum install -y --nogpgcheck nodejs`
+3. `sudo yum clean packages`
+4. `sudo yum install -y --nogpgcheck nodejs`
+5. `node -v`
+6. `npm -v`
