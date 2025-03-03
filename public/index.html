@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV Converter</title>
+</head>
+<body>
+  <h1>CSV Converter</h1>
+  
+  <!-- Upload CSV Form -->
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label for="file">Upload CSV File:</label>
+    <input type="file" id="file" name="file" accept=".csv" required>
+    <br><br>
+    <button type="submit">Upload CSV</button>
+  </form>
+
+  <br><br>
+
+  <!-- Convert and Download CSV Button -->
+  <button id="convertBtn">Convert and Download CSV</button>
+
+  <br><br>
+  <p id="statusMessage"></p>
+
+  <script>
+    // Handle file upload with AJAX
+    document.getElementById('uploadForm').addEventListener('submit', function (e) {
+      e.preventDefault();  // Prevent form from submitting normally
+      const formData = new FormData(this);
+      
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('statusMessage').textContent = data.message;
+        alert('File uploaded successfully!');
+      })
+      .catch(err => {
+        document.getElementById('statusMessage').textContent = 'Error uploading file.';
+        console.error(err);
+      });
+    });
+
+    // Handle file conversion and download with AJAX
+    document.getElementById('convertBtn').addEventListener('click', function (e) {
+      e.preventDefault();  // Prevent button from submitting normally
+
+      fetch('/convert')
+      .then(response => {
+        if (response.ok) {
+          return response.blob();  // Get the response as a blob
+        } else {
+          throw new Error('Error during conversion');
+        }
+      })
+      .then(blob => {
+        // Create a link element to download the file
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'converted_file.csv';  // Set download name for the file
+        document.body.appendChild(a);
+        a.click();
+        a.remove();  // Remove the element after the download starts
+        document.getElementById('statusMessage').textContent = 'CSV file converted and downloaded successfully!';
+      })
+      .catch(err => {
+        document.getElementById('statusMessage').textContent = 'Error converting file.';
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 const express = require('express');
-const https = require('https');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse');
@@ -8,78 +8,81 @@ const { createObjectCsvWriter } = require('csv-writer');
 const app = express();
 const PORT = 3000;
 
-const apiToken = '';
-const url = 'https://';
-const filePath = path.join(__dirname, 'MySource', 'source.csv');
+// Set up static files to serve the HTML from 'public' directory
+app.use(express.static('public'));
 
-// Ensure 'MySource' directory exists
-if (!fs.existsSync(path.join(__dirname, 'MySource'))) {
-    fs.mkdirSync(path.join(__dirname, 'MySource'));
-}
+// Configure multer storage with a fixed file name
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');  // Destination folder
+  },
+  filename: function (req, file, cb) {
+    cb(null, 'uploaded-file.csv');  // Fixed file name
+  }
+});
 
-app.get('/download-csv', (req, res) => {
-  const options = {
-      headers: {
-          'Authorization': `Bearer ${apiToken}`
-      }
-  };
+// Use the storage configuration
+const upload = multer({ storage: storage });
 
-  https.get(url, options, (response) => {
-      const file = fs.createWriteStream(filePath);
-      response.pipe(file);
+// Route to handle file uploads
+app.post('/upload', upload.single('file'), (req, res) => {
+  const file = req.file;
+  console.log(`File uploaded: ${file.originalname}`);
+  res.status(200).json({ message: 'File uploaded successfully.' });
+});
 
-      file.on('finish', () => {
-          file.close();
-          console.log('File downloaded successfully');
-          // Send success response after the file is downloaded
-          res.status(200).json({ message: 'CSV file downloaded successfully' });
-      });
-  }).on('error', (err) => {
-      console.error('Error downloading file', err);
-      // Send error response if there's a problem with the download
-      res.status(500).json({ error: 'Failed to download CSV file' });
+// Route to convert and download CSV
+app.get('/convert', (req, res) => {
+  const inputFilePath = path.join(__dirname, 'uploads', 'uploaded-file.csv');
+  const outputFolderPath = path.join(__dirname, 'Exported File');
+  
+  // Ensure 'Exported File' folder exists
+  if (!fs.existsSync(outputFolderPath)) {
+    fs.mkdirSync(outputFolderPath, { recursive: true });
+  }
+  
+  const outputFilePath = path.join(outputFolderPath, 'output.csv');
+  
+  // Call the CSV conversion function
+  createNewCsv(inputFilePath, outputFilePath);
+  
+  // Send the converted file as a response for download
+  res.download(outputFilePath, 'output.csv', (err) => {
+    if (err) {
+      console.error('Error sending the file:', err);
+    } else {
+      console.log('File sent successfully.');
+    }
   });
 });
 
-// Improved function to create the new CSV file
+// Function to convert CSV and create new CSV
 const createNewCsv = (inputFilePath, outputFilePath) => {
   const records = [];
 
-  // Create CSV parser with delimiter and trimming options
   const parser = fs.createReadStream(inputFilePath).pipe(parse({
     delimiter: ',',
-    columns: true,  // Auto-parses columns into an object
+    columns: true,
     skip_empty_lines: true,
-    trim: true      // Trim white spaces from each cell
+    trim: true
   }));
 
   parser.on('data', (row) => {
-    // Debugging: log the parsed row
-    console.log('Parsed Row:', row);
-
-    // Extract only the required columns and add hardcoded values
     const newRow = {
-      'Summary': row['Key']?.trim() || '' + '-' + row['Summary']?.trim() || '',      // Safely handle missing columns
-      'Components': getComponentsData(row),  // Safely handle missing columns
-      'Priority': row['Priority']?.trim() || '',    // Safely handle missing columns
-      'Assignee': 'Unassigned',                          // Hardcoded value
-      'Reporter': 'Astro',                         // Hardcoded value
+      'Summary': row['Key']?.trim() || '' + '-' + row['Summary']?.trim() || '',
+      'Components': getComponentsData(row),
+      'Priority': row['Priority']?.trim() || '',
+      'Assignee': 'Unassigned',
+      'Reporter': 'Astro',
       'Status': 'Open',
       'Triage_Status': 'Triaged',
       'Affects versions': 'No_Version',
-      'Reproducibility_%age': '100%'                           // Hardcoded value
+      'Reproducibility_%age': '100%'
     };
-
-    // Log the final row to be written to the new CSV
-    console.log('New Row to Write:', newRow);
-
     records.push(newRow);
   });
 
   parser.on('end', () => {
-    console.log('Final records:', records);
-
-    // Define the new CSV writer
     const csvWriter = createObjectCsvWriter({
       path: outputFilePath,
       header: [
@@ -95,10 +98,9 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
       ]
     });
 
-    // Write records to the new CSV file
     csvWriter.writeRecords(records)
       .then(() => {
-        console.log('New CSV file created successfully.');
+        console.log('New CSV created successfully.');
       })
       .catch(err => {
         console.error('Error writing new CSV:', err);
@@ -110,73 +112,40 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
   });
 };
 
-function getComponentsData(row){
-    let input = row['Components']?.trim() || '';
-    const values = input.split(";");
-    const mappedValues = values.map(mapComponent).filter(Boolean); 
-    const output = mappedValues.join(",");
-
-    return output;
+function getComponentsData(row) {
+  const input = row['Components']?.trim() || '';
+  const values = input.split(";");
+  const mappedValues = values.map(mapComponent).filter(Boolean);
+  return mappedValues.join(",");
 }
 
 function mapComponent(alcComponent) {
   const mapping = {
-      'Web': 'WEB',
-      'Android': 'Android',
-      'iOS': 'iOS',
-      'Android TV': 'ATV',
-      'WebOS': 'HTML TV',
-      'Smart TV': 'HTML TV',
-      'Tizen': 'HTML TV',
-      'VIDAA': 'HTML TV',
-      'CP backend': 'Backend',
-      'DP Backend': 'DP Backend',
-      'EM': 'CMS',
-      'TV Stick': null, // <dont import>
-      'TA': null, // <dont import>
-      'EV': null, // <dont import>
-      'OPC': null, // <dont import>
-      'UES': null, // <dont import>
-      'AMS': null, // <dont import>
-      'Conviva': 'Throw Exception', // Throw exception
-      'AA': 'Throw Exception', // Throw exception
-      'Ads_Banner': 'Throw Exception', // Throw exception
-      'CSAI': 'Throw Exception', // Throw exception
-      'SSAI': 'Throw Exception', // Throw exception
-      'VOD Publishing': 'Throw Exception', // Throw exception
-      'Linear Publishing': 'Throw Exception' // Throw exception
+    'Web': 'WEB',
+    'Android': 'Android',
+    'iOS': 'iOS',
+    'Android TV': 'ATV',
+    'WebOS': 'HTML TV',
+    'Smart TV': 'HTML TV',
+    'Tizen': 'HTML TV',
+    'VIDAA': 'HTML TV',
+    'CP backend': 'Backend',
+    'DP Backend': 'DP Backend',
+    'EM': 'CMS',
+    // Other mappings...
   };
 
   const result = mapping[alcComponent];
-
   if (result === 'Throw Exception') {
-      throw new Error(`Exception: Check ALC jira for '${alcComponent}' and manually map correct component.`);
+    throw new Error(`Exception: Check ALC jira for '${alcComponent}'`);
   } else if (result === null) {
-      return null; // <dont import> condition
+    return null;
   } else {
-      return result;
+    return result;
   }
 }
 
-// Endpoint to trigger the CSV processing
-app.get('/generate-new-csv', (req, res) => {
-  const inputFilePath = path.join(__dirname, 'Source File', 'source.csv');  // Path to your source CSV file
-  
-  const folderPath = path.join(__dirname, 'Exported File');
-
-// Ensure the folder exists or create it
-if (!fs.existsSync(folderPath)) {
-  fs.mkdirSync(folderPath, { recursive: true });
-}
-
-  const outputFilePath = path.join(folderPath, 'output.csv');  // Path to the output file
-
-  createNewCsv(inputFilePath, outputFilePath);
-
-  res.send('New CSV generation in progress. Check server logs for updates.');
-});
-
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
 });
