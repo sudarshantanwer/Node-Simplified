@@ -69,9 +69,10 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
 
   parser.on('data', (row) => {
     const newRow = {
-      'Summary': row['Key']?.trim() || '' + '-' + row['Summary']?.trim() || '',
+      'Summary': (row['Key']?.trim() || '') + '-' + row['Summary']?.trim() || '',
       'Components': getComponentsData(row),
       'Priority': row['Priority']?.trim() || '',
+      'Description': 'https://astrogo.atlassian.net/browse/' + row['Key'],
       'Assignee': 'Unassigned',
       'Reporter': 'Astro',
       'Status': 'Open',
@@ -89,6 +90,7 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
         { id: 'Summary', title: 'Summary' },
         { id: 'Components', title: 'Components' },
         { id: 'Priority', title: 'Priority' },
+        { id: 'Description', title: 'Description' },
         { id: 'Assignee', title: 'Assignee' },
         { id: 'Reporter', title: 'Reporter' },
         { id: 'Status', title: 'Status' },
