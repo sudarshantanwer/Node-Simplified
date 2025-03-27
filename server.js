@@ -106,7 +106,7 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
 
     // Dynamically generate 'Components_X' headers based on the maximum number of components
     for (let i = 1; i <= maxComponents; i++) {
-      header.push({ id: `Components_${i}`, title: `Components_${i}` });
+      header.push({ id: `Components_${i}`, title: `Components` });
     }
 
     const csvWriter = createObjectCsvWriter({
