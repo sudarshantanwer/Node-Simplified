@@ -59,6 +59,7 @@ app.get('/convert', (req, res) => {
 // Function to convert CSV and create new CSV
 const createNewCsv = (inputFilePath, outputFilePath) => {
   const records = [];
+  let maxComponents = 0; // Track the max number of components across all rows
 
   const parser = fs.createReadStream(inputFilePath).pipe(parse({
     delimiter: ',',
@@ -68,32 +69,49 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
   }));
 
   parser.on('data', (row) => {
+    const componentsArray = getComponentsData(row); // Get array of components
+    const componentsColumns = {};
+
+    // Dynamically add 'Components_X' columns based on number of components
+    componentsArray.forEach((component, index) => {
+      componentsColumns[`Components_${index + 1}`] = component;
+    });
+
+    // Track the maximum number of components in any row
+    maxComponents = Math.max(maxComponents, componentsArray.length);
+
     const newRow = {
       'Summary': (row['Key']?.trim() || '') + ' | ' + row['Summary']?.trim() || '',
-      'Components': getComponentsData(row),
       'Priority': row['Priority']?.trim() || '',
       'Description': 'https://astrogo.atlassian.net/browse/' + row['Key'],
       'Status': 'Open',
       'Triage_Status': 'Triaged',
       'Affects versions': 'No_Version',
-      'Reproducibility_%age': '100%'
+      'Reproducibility_%age': '100%',
+      ...componentsColumns // Add dynamically generated component columns
     };
     records.push(newRow);
   });
 
   parser.on('end', () => {
+    const header = [
+      { id: 'Summary', title: 'Summary' },
+      { id: 'Priority', title: 'Priority' },
+      { id: 'Description', title: 'Description' },
+      { id: 'Status', title: 'Status' },
+      { id: 'Triage_Status', title: 'Triage_Status' },
+      { id: 'Affects versions', title: 'Affects versions' },
+      { id: 'Reproducibility_%age', title: 'Reproducibility_%age' }
+    ];
+
+    // Dynamically generate 'Components_X' headers based on the maximum number of components
+    for (let i = 1; i <= maxComponents; i++) {
+      header.push({ id: `Components_${i}`, title: `Components_${i}` });
+    }
+
     const csvWriter = createObjectCsvWriter({
       path: outputFilePath,
-      header: [
-        { id: 'Summary', title: 'Summary' },
-        { id: 'Components', title: 'Components' },
-        { id: 'Priority', title: 'Priority' },
-        { id: 'Description', title: 'Description' },
-        { id: 'Status', title: 'Status' },
-        { id: 'Triage_Status', title: 'Triage_Status' },
-        { id: 'Affects versions', title: 'Affects versions' },
-        { id: 'Reproducibility_%age', title: 'Reproducibility_%age' }
-      ]
+      header: header
     });
 
     csvWriter.writeRecords(records)
@@ -114,7 +132,7 @@ function getComponentsData(row) {
   const input = row['Components']?.trim() || '';
   const values = input.split(";");
   const mappedValues = values.map(mapComponent).filter(Boolean);
-  return mappedValues.join(",");
+  return mappedValues;
 }
 
 function mapComponent(alcComponent) {
