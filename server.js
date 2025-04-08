@@ -32,101 +32,110 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // Route to convert and download CSV
-app.get('/convert', (req, res) => {
+app.get('/convert', async (req, res) => {
   const inputFilePath = path.join(__dirname, 'uploads', 'uploaded-file.csv');
   const outputFolderPath = path.join(__dirname, 'Exported File');
-  
-  // Ensure 'Exported File' folder exists
+
   if (!fs.existsSync(outputFolderPath)) {
     fs.mkdirSync(outputFolderPath, { recursive: true });
   }
-  
+
   const outputFilePath = path.join(outputFolderPath, 'output.csv');
-  
-  // Call the CSV conversion function
-  createNewCsv(inputFilePath, outputFilePath);
-  
-  // Send the converted file as a response for download
-  res.download(outputFilePath, 'output.csv', (err) => {
-    if (err) {
-      console.error('Error sending the file:', err);
-    } else {
-      console.log('File sent successfully.');
-    }
-  });
+
+  try {
+    await createNewCsv(inputFilePath, outputFilePath); // wait until conversion is done
+    res.download(outputFilePath, 'output.csv', (err) => {
+      if (err) {
+        console.error('Error sending the file:', err);
+      } else {
+        console.log('File sent successfully.');
+      }
+    });
+  } catch (error) {
+    console.error('Error during conversion:', error);
+    res.status(500).send('Error converting the file.');
+  }
 });
+
 
 // Function to convert CSV and create new CSV
 const createNewCsv = (inputFilePath, outputFilePath) => {
-  const records = [];
-  let maxComponents = 0; // Track the max number of components across all rows
+  return new Promise((resolve, reject) => {
+    const records = [];
+    let maxComponents = 0; // Track the maximum number of components across all rows
 
-  const parser = fs.createReadStream(inputFilePath).pipe(parse({
-    delimiter: ',',
-    columns: true,
-    skip_empty_lines: true,
-    trim: true
-  }));
+    const parser = fs.createReadStream(inputFilePath).pipe(parse({
+      delimiter: ',',
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    }));
 
-  parser.on('data', (row) => {
-    const componentsArray = getComponentsData(row); // Get array of components
-    const componentsColumns = {};
+    parser.on('data', (row) => {
+      const componentsArray = getComponentsData(row); // Get array of components
+      const componentsColumns = {};
 
-    // Dynamically add 'Components_X' columns based on number of components
-    componentsArray.forEach((component, index) => {
-      componentsColumns[`Components_${index + 1}`] = component;
-    });
-
-    // Track the maximum number of components in any row
-    maxComponents = Math.max(maxComponents, componentsArray.length);
-
-    const newRow = {
-      'Summary': (row['Key']?.trim() || '') + ' | ' + row['Summary']?.trim() || '',
-      'Priority': row['Priority']?.trim() || '',
-      'Description': 'https://astrogo.atlassian.net/browse/' + row['Key'],
-      'Status': 'Open',
-      'Triage_Status': 'Triaged',
-      'Affects versions': 'No_Version',
-      'Reproducibility_%age': '100%',
-      ...componentsColumns // Add dynamically generated component columns
-    };
-    records.push(newRow);
-  });
-
-  parser.on('end', () => {
-    const header = [
-      { id: 'Summary', title: 'Summary' },
-      { id: 'Priority', title: 'Priority' },
-      { id: 'Description', title: 'Description' },
-      { id: 'Status', title: 'Status' },
-      { id: 'Triage_Status', title: 'Triage_Status' },
-      { id: 'Affects versions', title: 'Affects versions' },
-      { id: 'Reproducibility_%age', title: 'Reproducibility_%age' }
-    ];
-
-    // Dynamically generate 'Components_X' headers based on the maximum number of components
-    for (let i = 1; i <= maxComponents; i++) {
-      header.push({ id: `Components_${i}`, title: `Components` });
-    }
-
-    const csvWriter = createObjectCsvWriter({
-      path: outputFilePath,
-      header: header
-    });
-
-    csvWriter.writeRecords(records)
-      .then(() => {
-        console.log('New CSV created successfully.');
-      })
-      .catch(err => {
-        console.error('Error writing new CSV:', err);
+      // Dynamically add 'Components_X' columns based on number of components
+      componentsArray.forEach((component, index) => {
+        componentsColumns[`Components_${index + 1}`] = component;
       });
-  });
 
-  parser.on('error', (err) => {
-    console.error('Error parsing CSV:', err);
+      // Track the maximum number of components found
+      maxComponents = Math.max(maxComponents, componentsArray.length);
+
+      const newRow = {
+        'Summary': (row["﻿Issue key"]?.trim() || '') + ' | ' + (row['Summary']?.trim() || ''),
+        'Priority': row['Priority']?.trim() || '',
+        'Description': 'https://astrogo.atlassian.net/browse/' + row["﻿Issue key"],
+        'Status': 'Open',
+        'Triage_Status': 'Triaged',
+        'Affects versions': 'No_Version',
+        'Reproducibility_%age': '100%',
+        ...componentsColumns // Spread dynamic components columns
+      };
+
+      records.push(newRow);
+    });
+
+    parser.on('end', () => {
+      // Create CSV headers dynamically based on maxComponents
+      const headers = [
+        { id: 'Summary', title: 'Summary' },
+        { id: 'Priority', title: 'Priority' },
+        { id: 'Description', title: 'Description' },
+        { id: 'Status', title: 'Status' },
+        { id: 'Triage_Status', title: 'Triage_Status' },
+        { id: 'Affects versions', title: 'Affects versions' },
+        { id: 'Reproducibility_%age', title: 'Reproducibility_%age' }
+      ];
+
+      for (let i = 1; i <= maxComponents; i++) {
+        headers.push({ id: `Components_${i}`, title: `Components` });
+      }
+
+      const csvWriter = createObjectCsvWriter({
+        path: outputFilePath,
+        header: headers,
+      });
+
+      csvWriter.writeRecords(records)
+        .then(() => {
+          console.log('New CSV written successfully.');
+          resolve();
+        })
+        .catch((err) => {
+          console.error('Error writing CSV:', err);
+          reject(err);
+        });
+    });
+
+    parser.on('error', (err) => {
+      console.error('Error parsing CSV:', err);
+      reject(err);
+    });
   });
 };
+
 
 function getComponentsData(row) {
   const input = row['Components']?.trim() || '';
