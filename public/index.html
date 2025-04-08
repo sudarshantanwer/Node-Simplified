@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CSV Converter</title>
   <style>
     body {
@@ -64,9 +64,11 @@
       background-color: #0056b3;
     }
 
-    #statusMessage {
+    #loader {
+      display: none;
+      margin-top: 15px;
       font-size: 1rem;
-      color: #28a745;
+      color: #007BFF;
     }
 
     @media (max-width: 768px) {
@@ -77,70 +79,78 @@
   </style>
 </head>
 <body>
+
   <h1>CSV Converter</h1>
-  
+
   <!-- Upload CSV Form -->
   <form id="uploadForm" enctype="multipart/form-data">
     <label for="file">Upload CSV File:</label>
-    <input type="file" id="file" name="file" accept=".csv" required>
-    <button type="submit">Upload CSV</button>
+    <input type="file" id="file" name="file" required>
+    <button type="submit">Upload File</button>
   </form>
 
-  <!-- Convert and Download CSV Button -->
-  <button id="convertBtn">Convert and Download CSV</button>
+  <!-- Download Converted CSV -->
+  <button id="downloadBtn">Download Converted CSV</button>
 
-  <!-- Status Message -->
-  <p id="statusMessage"></p>
+  <!-- Loader Text -->
+  <div id="loader">Processing... Please wait ⏳</div>
 
   <script>
-    // Handle file upload with AJAX
-    document.getElementById('uploadForm').addEventListener('submit', function (e) {
-      e.preventDefault();  // Prevent form from submitting normally
-      const formData = new FormData(this);
-      
-      fetch('/upload', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById('statusMessage').textContent = data.message;
+    const uploadForm = document.getElementById('uploadForm');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const loader = document.getElementById('loader');
+
+    // Handle file upload
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(uploadForm);
+
+      loader.style.display = 'block'; // Show loader during upload
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+        console.log(result.message);
         alert('File uploaded successfully!');
-      })
-      .catch(err => {
-        document.getElementById('statusMessage').textContent = 'Error uploading file.';
-        console.error(err);
-      });
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Error uploading file.');
+      } finally {
+        loader.style.display = 'none'; // Hide loader after upload
+      }
     });
 
-    // Handle file conversion and download with AJAX
-    document.getElementById('convertBtn').addEventListener('click', function (e) {
-      e.preventDefault();  // Prevent button from submitting normally
+    // Handle download
+    downloadBtn.addEventListener('click', async () => {
+      loader.style.display = 'block'; // Show loader during download
 
-      fetch('/convert')
-      .then(response => {
-        if (response.ok) {
-          return response.blob();  // Get the response as a blob
-        } else {
-          throw new Error('Error during conversion');
+      try {
+        const response = await fetch('/convert');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
-      })
-      .then(blob => {
-        // Create a link element to download the file
+        const blob = await response.blob();
+
+        // Create a temporary link to trigger download
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'converted_file.csv';  // Set download name for the file
+        a.download = 'output.csv';
         document.body.appendChild(a);
         a.click();
-        a.remove();  // Remove the element after the download starts
-        document.getElementById('statusMessage').textContent = 'CSV file converted and downloaded successfully!';
-      })
-      .catch(err => {
-        document.getElementById('statusMessage').textContent = 'Error converting file.';
-        console.error(err);
-      });
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download error:', error);
+        alert('Error downloading the file.');
+      } finally {
+        loader.style.display = 'none'; // Hide loader after download
+      }
     });
   </script>
+
 </body>
 </html>
