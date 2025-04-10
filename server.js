@@ -72,6 +72,7 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
     }));
 
     parser.on('data', (row) => {
+      row = cleanRowKeysAndValues(row);
       const componentsArray = getComponentsData(row); // Get array of components
       const componentsColumns = {};
 
@@ -82,11 +83,12 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
 
       // Track the maximum number of components found
       maxComponents = Math.max(maxComponents, componentsArray.length);
+      let key = row["Issue key"] || row["Key"];
 
       const newRow = {
-        'Summary': (row["﻿Issue key"]?.trim() || '') + ' | ' + (row['Summary']?.trim() || ''),
-        'Priority': row['Priority']?.trim() || '',
-        'Description': 'https://astrogo.atlassian.net/browse/' + row["﻿Issue key"],
+        'Summary': (key || '') + ' | ' + (row['Summary'] || ''),
+        'Priority': row['Priority'] || '',
+        'Description': 'https://astrogo.atlassian.net/browse/' + key,
         'Status': 'Open',
         'Triage_Status': 'Triaged',
         'Affects versions': 'No_Version',
@@ -136,9 +138,18 @@ const createNewCsv = (inputFilePath, outputFilePath) => {
   });
 };
 
+function cleanRowKeysAndValues(row) {
+  const cleanedRow = {};
+  for (let key in row) {
+    const cleanKey = key.replace(/\uFEFF/g, '').trim();
+    const value = row[key];
+    cleanedRow[cleanKey] = typeof value === 'string' ? value.trim() : value;
+  }
+  return cleanedRow;
+}
 
 function getComponentsData(row) {
-  const input = row['Components']?.trim() || '';
+  const input = (row['Components'] || '').trim();
   const values = input.split(";");
   const mappedValues = values.map(mapComponent).filter(Boolean);
   return mappedValues;
