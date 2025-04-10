@@ -6,7 +6,7 @@ const { parse } = require('csv-parse');
 const { createObjectCsvWriter } = require('csv-writer');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Set up static files to serve the HTML from 'public' directory
 app.use(express.static('public'));
