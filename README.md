@@ -6,12 +6,14 @@ This repository covers all the important topics of Node.js in a simplified and p
 - **Node.js Basics**: Core fundamentals of Node.js, including asynchronous programming, callbacks, promises, and event-driven architecture.
 - **Express.js**: A fast, minimalist web framework for building APIs and web applications.
 - **Nodemon**: Automatically restarts the server during development when changes are detected, making development faster and smoother.
+- **Redis**: An in-memory data structure store, used as a database, cache, and message broker.
 
 ## Prerequisites
 Before getting started, ensure you have the following installed:
 - [Node.js](https://nodejs.org) (v14.x or above)
 - [npm](https://www.npmjs.com/) (comes with Node.js)
 - [Git](https://git-scm.com/)
+- [Redis](https://redis.io/topics/quickstart)
 
 ## Getting Started
 
