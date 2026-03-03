@@ -13,6 +13,10 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.1.5",
+    "express-slow-down": "^2.0.1",
+    "redis": "^4.6.11",
+    "rate-limiter-flexible": "^4.0.1",
     "nodemon": "^3.1.9"
   }
 }
